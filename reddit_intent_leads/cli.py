@@ -17,6 +17,56 @@ app = typer.Typer(add_completion=False, help="Reddit Intent Lead Finder (CLI)")
 console = Console()
 
 
+@app.command()
+def keywords(
+    product: str = typer.Option("", "--product", "-p", help="Competitor/product name, e.g. 'HubSpot'"),
+    category: str = typer.Option("", "--category", "-c", help="Category, e.g. 'crm', 'invoice software'"),
+    out: Path | None = typer.Option(None, "--out", help="Optional output file path"),
+):
+    """Generate high-intent Reddit search queries for lead-finding."""
+
+    product = (product or "").strip()
+    category = (category or "").strip() or "your tool"
+
+    templates = [
+        "{category} alternative",
+        "alternative to {product}",
+        "{product} alternative",
+        "{product} vs",
+        "recommend {category}",
+        "best {category}",
+        "looking for {category}",
+        "need a {category}",
+        "{category} for small business",
+        "cheap {category}",
+        "open source {category}",
+    ]
+
+    queries: list[str] = []
+    for t in templates:
+        if "{product}" in t and not product:
+            continue
+        queries.append(t.format(product=product, category=category).strip())
+
+    # de-dup while preserving order
+    seen = set()
+    deduped: list[str] = []
+    for q in queries:
+        if q.lower() in seen:
+            continue
+        seen.add(q.lower())
+        deduped.append(q)
+
+    text = "\n".join(deduped) + "\n"
+    console.print(text)
+
+    if out:
+        out = out.expanduser().resolve()
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text, encoding="utf-8")
+        console.print(f"Wrote: {out}")
+
+
 def _parse_subs(subs: str) -> list[str]:
     out: list[str] = []
     for s in (subs or "").split(","):
